@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Soundboard</title>
+  <style>
+    :root{
+      --bg: #0b0f1a;
+      --card: #111a2e;
+      --card2: #0f1730;
+      --text: #e8eefc;
+      --muted: rgba(232,238,252,.75);
+      --ring: rgba(120,170,255,.35);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(1200px 800px at 10% 10%, #19264a 0%, transparent 60%),
+                  radial-gradient(900px 700px at 90% 20%, #1a3a6a 0%, transparent 55%),
+                  var(--bg);
+      color:var(--text);
+      min-height:100svh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: clamp(16px, 3vw, 32px);
+    }
+    .wrap{
+      width:min(1100px, 100%);
+    }
+    h1{
+      margin: 0 0 18px;
+      font-size: clamp(34px, 4vw, 64px);
+      letter-spacing: 0.02em;
+      line-height: 1.05;
+    }
+    .sub{
+      margin: 0 0 22px;
+      color: var(--muted);
+      font-size: clamp(14px, 1.5vw, 18px);
+    }
+
+    /* Responsive grid that adapts columns automatically */
+    .grid{
+      display:grid;
+      gap: clamp(12px, 2vw, 18px);
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    /* Square buttons */
+    .btn{
+      aspect-ratio: 1 / 1;       /* square */
+      width: 100%;
+      border: 0;
+      border-radius: 18px;
+      background: linear-gradient(180deg, var(--card), var(--card2));
+      color: var(--text);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      cursor:pointer;
+      user-select:none;
+      position:relative;
+      box-shadow:
+        0 10px 30px rgba(0,0,0,.35),
+        inset 0 0 0 1px rgba(255,255,255,.06);
+      transition: transform .08s ease, box-shadow .12s ease, outline-color .12s ease;
+      outline: 3px solid transparent;
+      outline-offset: 2px;
+    }
+    .btn:hover{
+      outline-color: var(--ring);
+      box-shadow:
+        0 14px 38px rgba(0,0,0,.42),
+        inset 0 0 0 1px rgba(255,255,255,.08);
+      transform: translateY(-1px);
+    }
+    .btn:active{
+      transform: translateY(1px) scale(.99);
+    }
+    .btn .num{
+      font-size: clamp(22px, 3vw, 34px);
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+    .btn .label{
+      margin-top: 8px;
+      font-size: clamp(12px, 1.4vw, 16px);
+      color: var(--muted);
+    }
+
+    .toast{
+      margin-top: 16px;
+      font-size: 14px;
+      color: var(--muted);
+      min-height: 1.2em;
+    }
+
+    /* Small screens: give buttons a bit more size */
+    @media (max-width: 420px){
+      .grid{ grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+      .btn{ border-radius: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>My Soundboard</h1>
+    <p class="sub">Hello Wasabi.</p>
+
+    <section class="grid" id="grid"></section>
+    <div class="toast" id="toast" aria-live="polite"></div>
+  </main>
+
+  <script>
+    const sounds = [
+      { id: "01", label: "Final Design", src: "final_design.mp3" },
+      { id: "02", label: "Emerald", src: "emerald.mp3" },
+      { id: "03", label: "Story Points", src: "story_points.mp3" },
+      { id: "04", label: "Call Services", src: "call_services.mp3" },
+      { id: "05", label: "MVP", src: "mvp.mp3" },
+      { id: "06", label: "Pipelines", src: "pipeline.mp3" },
+      { id: "07", label: "Business", src: "business" },
+      { id: "08", label: "Quick Win", src: "quick_win.mp3" },
+    ];
+
+    const grid = document.getElementById("grid");
+    const toast = document.getElementById("toast");
+
+    const player = new Audio();
+    player.preload = "auto";
+
+    function showToast(msg){
+      toast.textContent = msg || "";
+      if (!msg) return;
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.textContent = "", 2500);
+    }
+
+    function playByIndex(index, { updateHash = true } = {}){
+      if (index < 0 || index >= sounds.length) {
+        showToast("No such sound.");
+        return;
+      }
+      const s = sounds[index];
+      player.pause();
+      player.currentTime = 0;
+      player.src = s.src;
+
+      const playPromise = player.play();
+      if (playPromise && typeof playPromise.then === "function") {
+        playPromise.then(() => {
+          showToast(`Playing #${s.id} (${s.src})`);
+          if (updateHash) location.hash = s.id;
+        }).catch(err => {
+          // Browsers may block autoplay without user gesture
+          showToast(`Couldn't play automatically. Click a button to allow audio.`);
+          console.warn(err);
+        });
+      } else {
+        showToast(`Playing #${s.id} (${s.src})`);
+        if (updateHash) location.hash = s.id;
+      }
+    }
+
+    sounds.forEach((s, i) => {
+      const btn = document.createElement("button");
+      btn.className = "btn";
+      btn.type = "button";
+      btn.dataset.index = String(i);
+      btn.innerHTML = `
+        <div class="num">#${s.id}</div>
+        <div class="label">${s.label}</div>
+      `;
+      btn.addEventListener("click", () => playByIndex(i, { updateHash: true }));
+      grid.appendChild(btn);
+    });
+
+    function handleHash(){
+      const raw = (location.hash || "").replace("#", "").trim();
+      if (!raw) return;
+
+      // Accept "1" or "01"
+      const normalized = raw.padStart(2, "0");
+      const idx = sounds.findIndex(s => s.id === normalized);
+
+      if (idx !== -1) playByIndex(idx, { updateHash: false });
+      else showToast(`Unknown hash #${raw}. Use #01…#08.`);
+    }
+
+    window.addEventListener("hashchange", handleHash);
+    handleHash();
+  </script>
+</body>
+</html>
